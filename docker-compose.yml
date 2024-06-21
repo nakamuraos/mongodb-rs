@@ -1,0 +1,37 @@
+version: "3"
+
+services:
+  mongodb_init:
+    container_name: mongodb_init
+    image: busybox
+    command: /bin/sh -c 'cp /keyfile /mongo/my-keyfile && chmod 400 /mongo/my-keyfile && chown -R 1000:1000 /mongo'
+    volumes:
+      - ./conf/keyfile:/keyfile:ro
+      - ./mongo_data:/mongo:rw
+
+  mongodb:
+    container_name: mongodb
+    image: mongo:6
+    restart: on-failure
+    user: "1000:1000"
+    depends_on:
+      mongodb_init:
+        condition: "service_completed_successfully"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "root"
+      MONGO_INITDB_ROOT_PASSWORD: "759fec11d5f6455284e2f0502d729923"
+    ports:
+      - "27017:27017"
+    command: --auth --replSet rs0 --keyFile /data/db/my-keyfile --bind_ip_all
+    volumes:
+      - ./mongo_data:/data/db
+
+  mongodb_setup:
+    image: mongo:6
+    container_name: mongodb_setup
+    depends_on:
+      - mongodb
+    restart: on-failure
+    entrypoint: ["/bin/bash", "/setup_mongo.sh"]
+    volumes:
+      - ./conf/setup_mongo.sh:/setup_mongo.sh
